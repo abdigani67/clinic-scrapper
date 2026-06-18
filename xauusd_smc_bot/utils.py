@@ -84,6 +84,40 @@ def session_open(check_time: datetime | None = None) -> bool:
     return start <= check_time <= end
 
 
+def past_entry_cutoff(check_time: datetime | None = None) -> bool:
+    """Return whether it is too late in the session to open a new intraday trade.
+
+    No new trade should open in the final config.NO_ENTRY_BEFORE_CLOSE_MIN
+    minutes, since it cannot play out before the forced end-of-day close.
+
+    Args:
+        check_time: EST datetime to test. Defaults to now (EST).
+
+    Returns:
+        bool: True if new entries should be blocked.
+    """
+    if check_time is None:
+        check_time = now_est()
+    end_h, end_m = (int(x) for x in config.SESSION_END.split(":"))
+    minutes = check_time.hour * 60 + check_time.minute
+    return minutes > (end_h * 60 + end_m) - config.NO_ENTRY_BEFORE_CLOSE_MIN
+
+
+def at_or_past_session_end(check_time: datetime | None = None) -> bool:
+    """Return whether the NY session has reached or passed its close time.
+
+    Args:
+        check_time: EST datetime to test. Defaults to now (EST).
+
+    Returns:
+        bool: True at/after config.SESSION_END.
+    """
+    if check_time is None:
+        check_time = now_est()
+    end_h, end_m = (int(x) for x in config.SESSION_END.split(":"))
+    return (check_time.hour * 60 + check_time.minute) >= (end_h * 60 + end_m)
+
+
 def log_error(message: str) -> None:
     """Append an error/exception message to error_log.txt with a timestamp.
 

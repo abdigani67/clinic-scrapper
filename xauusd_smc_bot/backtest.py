@@ -190,6 +190,24 @@ def _session_open_est(ts: pd.Timestamp) -> bool:
     return (start_h * 60 + start_m) <= minutes <= (end_h * 60 + end_m)
 
 
+def _past_entry_cutoff(ts: pd.Timestamp) -> bool:
+    """Return whether ``ts`` is too close to the session end to open a trade.
+
+    No new intraday trade should be opened in the final
+    config.NO_ENTRY_BEFORE_CLOSE_MIN minutes (it cannot play out before the
+    forced end-of-day close).
+    """
+    end_h, end_m = (int(x) for x in config.SESSION_END.split(":"))
+    minutes = ts.hour * 60 + ts.minute
+    return minutes > (end_h * 60 + end_m) - config.NO_ENTRY_BEFORE_CLOSE_MIN
+
+
+def _at_or_past_session_end(ts: pd.Timestamp) -> bool:
+    """Return whether ``ts`` is at or beyond the NY session close."""
+    end_h, end_m = (int(x) for x in config.SESSION_END.split(":"))
+    return (ts.hour * 60 + ts.minute) >= (end_h * 60 + end_m)
+
+
 def _safe_news_block(ts: pd.Timestamp) -> bool:
     """Return whether an EST timestamp falls in a hardcoded safe-mode news window.
 
@@ -405,13 +423,16 @@ def run_with_signals(
 
         if open_trade is not None:
             hit = _check_exit(open_trade, bar)
+            # Intraday: force-close any trade still open at the session end.
+            if hit is None and config.INTRADAY_EXIT and _at_or_past_session_end(ts):
+                hit = (float(bar["close"]), "EOD")
             if hit is not None:
                 exit_price, res = hit
                 pnl = _pnl(open_trade, exit_price, point, commission_per_lot)
                 balance += pnl
                 open_trade.exit_time = ts
                 open_trade.exit = exit_price
-                open_trade.result = res
+                open_trade.result = "WIN" if pnl > 0 else "LOSS"
                 open_trade.pnl = pnl
                 open_trade.balance_after = balance
                 result.trades.append(open_trade)
@@ -425,6 +446,9 @@ def run_with_signals(
             continue
         if apply_session and not _session_open_est(ts):
             continue
+        # Intraday: no new entries in the final minutes before the close.
+        if config.INTRADAY_EXIT and _past_entry_cutoff(ts):
+            continue
         if apply_news and _safe_news_block(ts):
             continue
         if daily_halt:
@@ -435,12 +459,12 @@ def run_with_signals(
 
         direction = "BUY" if direction_val > 0 else "SELL"
         m15_win = _trailing_ns(m15_ohlc, m15_ns, now_ns, config.M15_CANDLES)
-        if len(m15_win) < config.SL_SWING_LOOKBACK:
+        if len(m15_win) < max(config.SL_SWING_LOOKBACK, config.ATR_PERIOD + 1):
             continue
 
         price = float(bar["close"])
         entry = price + spread_points * point * (1 if direction == "BUY" else -1)
-        sl = risk.stop_loss(direction, entry, m15_win, point)
+        sl = risk.compute_stop(direction, entry, m15_win, point)
         if sl is None:
             continue
         tp, rr = risk.take_profit(direction, entry, sl, m15_win, point)

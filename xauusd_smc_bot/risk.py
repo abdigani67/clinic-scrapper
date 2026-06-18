@@ -12,6 +12,9 @@ import json
 import math
 import os
 
+import numpy as np
+import pandas as pd
+
 import config
 from utils import log_error
 
@@ -130,6 +133,84 @@ def stop_loss(direction: str, entry: float, m15, point: float) -> float | None:
         log_error(f"SL too wide ({distance_points:.0f} pts) — skipping trade.")
         return None
     return sl_price
+
+
+def _atr(m15, period: int) -> float:
+    """Return the latest Average True Range value of an M15 window.
+
+    ATR measures recent volatility (the typical candle range). Intraday stops are
+    sized from it so they adapt to how much gold is actually moving.
+
+    Args:
+        m15: M15 candle DataFrame.
+        period: ATR smoothing period.
+
+    Returns:
+        float: Latest ATR in price units, or NaN if not computable.
+    """
+    high, low, close = m15["high"], m15["low"], m15["close"]
+    prev_close = close.shift(1)
+    true_range = pd.concat([
+        high - low,
+        (high - prev_close).abs(),
+        (low - prev_close).abs(),
+    ], axis=1).max(axis=1)
+    atr_series = true_range.ewm(alpha=1 / period, adjust=False).mean()
+    return float(atr_series.iloc[-1])
+
+
+def stop_loss_atr(direction: str, entry: float, m15, point: float) -> float | None:
+    """Compute an intraday, volatility-scaled stop-loss from ATR.
+
+    SL distance = ATR_MULT × ATR(ATR_PERIOD), clamped to the MIN/MAX point
+    bounds. Unlike the swing stop (which follows market structure and can be very
+    wide), this keeps stops proportional to current intraday volatility — tighter,
+    more consistent, and far more affordable on a small account.
+
+    Args:
+        direction: 'BUY' or 'SELL'.
+        entry: Intended entry price.
+        m15: M15 candle DataFrame.
+        point: Symbol point size.
+
+    Returns:
+        float | None: Stop-loss price, or None if ATR is unavailable.
+    """
+    if len(m15) < config.ATR_PERIOD + 1:
+        return None
+    atr = _atr(m15, config.ATR_PERIOD)
+    if not np.isfinite(atr) or atr <= 0:
+        return None
+
+    distance_points = (config.ATR_MULT * atr) / point
+    # Clamp into the configured bounds so intraday stops stay sane.
+    distance_points = max(config.MIN_SL_POINTS,
+                          min(config.MAX_SL_POINTS, distance_points))
+    distance_price = distance_points * point
+
+    if direction == "BUY":
+        return entry - distance_price
+    return entry + distance_price
+
+
+def compute_stop(direction: str, entry: float, m15, point: float) -> float | None:
+    """Dispatch to the configured stop-loss method (swing vs intraday ATR).
+
+    Controlled by config.STOP_MODE ('atr' or 'swing'). All other risk rules
+    (sizing, daily loss, RR) are unchanged regardless of the stop method.
+
+    Args:
+        direction: 'BUY' or 'SELL'.
+        entry: Intended entry price.
+        m15: M15 candle DataFrame.
+        point: Symbol point size.
+
+    Returns:
+        float | None: Stop-loss price, or None to skip the trade.
+    """
+    if config.STOP_MODE == "atr":
+        return stop_loss_atr(direction, entry, m15, point)
+    return stop_loss(direction, entry, m15, point)
 
 
 def take_profit(direction: str, entry: float, sl: float, m15,

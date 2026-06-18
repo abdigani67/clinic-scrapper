@@ -244,6 +244,23 @@ strategies (donchian, orb, ema_cross) clearly beat the counter-trend control,
 which is why `donchian` is the default. **Always re-rank on real data before
 trusting any of them.**
 
+## Intraday vs. swing stops
+
+`STOP_MODE` in `config.py` controls how stops are placed and is the single
+biggest lever on capital efficiency:
+
+- **`"atr"` (default, intraday):** stop distance = `ATR_MULT × ATR(ATR_PERIOD)`
+  on M15 — tight, volatility-scaled stops (typically a few hundred points). The
+  bot also flattens any open trade at the session close (`INTRADAY_EXIT`) and
+  stops opening new trades in the last `NO_ENTRY_BEFORE_CLOSE_MIN` minutes, so
+  nothing is held overnight.
+- **`"swing"`:** structure-based stops at the last N M15 swing high/low. Truer to
+  classic SMC but produces very wide gold stops that need a large account.
+
+The 2% risk, daily-loss limit and NY-session hours are identical in both modes.
+Intraday/ATR stops are what make a small account viable — compare them with
+`python compare.py <data.csv> --stop-mode atr` vs `--stop-mode swing`.
+
 ## Backtesting (do this BEFORE risking real money)
 
 A month on demo is a tiny, luck-dominated sample. The backtester replays years of

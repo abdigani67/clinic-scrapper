@@ -61,6 +61,10 @@ def main(argv=None) -> int:
                         help="Override MIN_SL_POINTS.")
     parser.add_argument("--risk", type=float, default=None,
                         help="Override RISK_PERCENT.")
+    parser.add_argument("--stop-mode", choices=["atr", "swing"], default=None,
+                        help="Override STOP_MODE (intraday ATR vs swing).")
+    parser.add_argument("--atr-mult", type=float, default=None,
+                        help="Override ATR_MULT for the intraday stop.")
     parser.add_argument("--verbose", action="store_true",
                         help="Show per-trade skip warnings (noisy).")
     args = parser.parse_args(argv)
@@ -73,15 +77,21 @@ def main(argv=None) -> int:
         config.MIN_SL_POINTS = args.min_sl
     if args.risk is not None:
         config.RISK_PERCENT = args.risk
+    if args.stop_mode is not None:
+        config.STOP_MODE = args.stop_mode
+    if args.atr_mult is not None:
+        config.ATR_MULT = args.atr_mult
     if not args.verbose:
         # risk.py bound `log_error` at import, so patch it there too.
         _quiet = lambda *a, **k: None  # noqa: E731
         utils.log_error = _quiet
         bt.risk.log_error = _quiet
 
-    print(f"Risk: {config.RISK_PERCENT}%  SL bounds: "
-          f"{config.MIN_SL_POINTS}-{config.MAX_SL_POINTS} pts  "
-          f"Balance: {args.balance}")
+    stop_desc = (f"ATR×{config.ATR_MULT}" if config.STOP_MODE == "atr"
+                 else "swing")
+    print(f"Risk: {config.RISK_PERCENT}%  Stop: {stop_desc}  "
+          f"SL bounds: {config.MIN_SL_POINTS}-{config.MAX_SL_POINTS} pts  "
+          f"Balance: {args.balance}  Intraday-exit: {config.INTRADAY_EXIT}")
     print(f"Loading {args.csv} (tz={args.data_tz})...")
     m5 = bt.load_m5_csv(args.csv, args.data_tz)
     m15 = bt.resample(m5, "15min")

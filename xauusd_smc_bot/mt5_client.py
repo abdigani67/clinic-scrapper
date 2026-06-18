@@ -276,6 +276,60 @@ def _now_server_dt():
     return datetime.now() + timedelta(days=1)
 
 
+def close_position(position) -> bool:
+    """Close an open position with an opposing market order.
+
+    Used for the intraday end-of-day exit so nothing is held overnight.
+
+    Args:
+        position: An MT5 position object from positions_get().
+
+    Returns:
+        bool: True if the close order was accepted.
+    """
+    # Opposite side closes the position; sells hit the bid, buys the ask.
+    is_buy = position.type == mt5.ORDER_TYPE_BUY
+    close_type = mt5.ORDER_TYPE_SELL if is_buy else mt5.ORDER_TYPE_BUY
+    tick = mt5.symbol_info_tick(config.SYMBOL)
+    if tick is None:
+        log_error("close_position: no tick available.")
+        return False
+    price = tick.bid if is_buy else tick.ask
+
+    request = {
+        "action": mt5.TRADE_ACTION_DEAL,
+        "symbol": config.SYMBOL,
+        "volume": float(position.volume),
+        "type": close_type,
+        "position": position.ticket,
+        "price": price,
+        "deviation": config.ORDER_DEVIATION,
+        "magic": config.MAGIC_NUMBER,
+        "comment": "SMC_BOT_EOD_CLOSE",
+        "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": mt5.ORDER_FILLING_IOC,
+    }
+    result = mt5.order_send(request)
+    if result is None or result.retcode != mt5.TRADE_RETCODE_DONE:
+        log_error(f"close_position failed: "
+                  f"{getattr(result, 'comment', mt5.last_error())}")
+        return False
+    return True
+
+
+def close_all_positions() -> int:
+    """Close every open position on the configured symbol.
+
+    Returns:
+        int: Number of positions successfully closed.
+    """
+    closed = 0
+    for pos in get_open_positions():
+        if close_position(pos):
+            closed += 1
+    return closed
+
+
 def place_order(direction: str, lot: float, sl: float, tp: float) -> dict:
     """Send a market order and confirm whether it filled.
 

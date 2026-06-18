@@ -23,10 +23,12 @@ import risk
 import strategies
 import strategy
 from utils import (
+    at_or_past_session_end,
     fmt_est,
     log_error,
     log_trade,
     now_est,
+    past_entry_cutoff,
     print_status,
     session_open,
 )
@@ -87,6 +89,12 @@ def _monitor_open_position(state: BotState) -> None:
         None.
     """
     if mt5c.has_open_position():
+        # Intraday: force-close everything at/after the session end (no overnight
+        # risk). SL/TP still apply during the session.
+        if config.INTRADAY_EXIT and at_or_past_session_end():
+            closed = mt5c.close_all_positions()
+            if closed:
+                print(f"⏹  End-of-day close: flattened {closed} position(s).")
         return  # Still open — nothing to do this cycle.
 
     # If we previously had a position flagged, record its outcome.
@@ -124,6 +132,11 @@ def _try_enter_trade(state: BotState) -> None:
 
     if not session_open():
         state.cached["signal"] = "SESSION CLOSED"
+        return
+
+    # Intraday: stop opening new trades near the close (they can't play out).
+    if config.INTRADAY_EXIT and past_entry_cutoff():
+        state.cached["signal"] = "NEAR CLOSE — NO ENTRY"
         return
 
     if news.in_news_window():
@@ -184,7 +197,7 @@ def _try_enter_trade(state: BotState) -> None:
 
     point = mt5c.get_point()
 
-    sl = risk.stop_loss(direction, entry, m15, point)
+    sl = risk.compute_stop(direction, entry, m15, point)
     if sl is None:
         state.cached["signal"] = "SL OUT OF RANGE"
         return

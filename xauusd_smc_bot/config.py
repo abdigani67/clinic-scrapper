@@ -113,8 +113,20 @@ SWEEP_LOOKBACK = 8       # Sweep must have occurred within last N M15 candles
 IMPULSE_MIN_CANDLES = 3  # Minimum consecutive candles to count as an impulse
 
 # Stop loss construction.
-SL_SWING_LOOKBACK = 10   # Use the highest/lowest of last N M15 candles for SL
-SL_BUFFER_POINTS = 20    # Extra buffer added beyond the swing (in points)
+# STOP_MODE selects how stops are placed:
+#   "atr"   — intraday, volatility-scaled stops (ATR_MULT × ATR). Tighter and
+#             affordable on small accounts. RECOMMENDED for intraday trading.
+#   "swing" — structure-based stops at the last N M15 swing high/low (can be
+#             very wide on gold; needs a large account).
+STOP_MODE = "atr"
+SL_SWING_LOOKBACK = 10   # (swing mode) highest/lowest of last N M15 candles
+SL_BUFFER_POINTS = 20    # (swing mode) extra buffer beyond the swing, in points
+ATR_PERIOD = 14          # (atr mode) ATR lookback on M15
+ATR_MULT = 1.5           # (atr mode) stop distance = ATR_MULT × ATR
+
+# Intraday session management.
+INTRADAY_EXIT = True            # Close any open trade before the session ends
+NO_ENTRY_BEFORE_CLOSE_MIN = 60  # Don't open new trades in the last N mins
 
 # Lot sizing.
 MIN_LOT = 0.01           # Broker minimum

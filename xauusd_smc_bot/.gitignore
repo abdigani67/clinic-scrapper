@@ -13,6 +13,7 @@ backtest_report.txt
 compare_report.txt
 compare_realistic.txt
 compare_err.log
+intraday_compare.txt
 synthetic_xauusd_m5.csv
 *.csv.gz
 
