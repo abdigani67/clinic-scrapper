@@ -223,6 +223,63 @@ for the record of placed trades.
 
 ---
 
+## Backtesting (do this BEFORE risking real money)
+
+A month on demo is a tiny, luck-dominated sample. The backtester replays years of
+history through the **exact same** `strategy.py` and `risk.py` the live bot uses,
+so you get hundreds of trades and real statistics (win rate, profit factor,
+drawdown) before committing capital.
+
+### 1. Get historical M5 data
+
+Export XAUUSD **M5** candles to a CSV with columns `time, open, high, low, close`
+(a `volume` column is optional). The easiest source is your own MT5 terminal
+(it's the same price history you'll trade on):
+
+- In MT5: `View -> Symbols -> XAUUSD -> Bars`, choose **M5** and a date range,
+  then export. Or use a small script with `mt5.copy_rates_range(...)` and
+  `pandas.to_csv()`.
+
+### 2. Run it
+
+```bash
+python backtest.py path/to/xauusd_m5.csv --balance 100 --data-tz UTC
+```
+
+Key flags:
+
+| Flag | Meaning |
+| --- | --- |
+| `--balance` | Starting balance (default 100) |
+| `--data-tz` | Timezone of your CSV's `time` column (MT5 servers are often `Etc/GMT-2`/`Etc/GMT-3`). Converted to EST so session/news filters line up. |
+| `--commission` | Round-turn commission per 1.0 lot (IC Markets Raw ≈ 7) |
+| `--spread-points` | Spread cost applied to entries |
+| `--no-news` / `--no-session` | Disable a filter for sensitivity analysis |
+| `--no-compound` | Size off the fixed starting balance instead of equity |
+
+It prints a report and writes per-trade detail to `backtest_trades.csv`.
+
+### How it stays honest
+
+- **No lookahead.** At each step only candles that had *fully closed* by that
+  moment are fed to the strategy; H1/M15 are derived from the M5 series.
+- **Conservative fills.** Entries fill at the signal bar's close; if a later bar
+  spans both SL and TP, the **stop** is assumed hit first.
+- **Costs included.** Commission and spread are deducted from every trade.
+
+### Try-before-you-buy-data sanity check
+
+`make_synthetic_data.py` generates a fake year of M5 candles so you can see the
+engine run without any data file:
+
+```bash
+python make_synthetic_data.py synthetic_xauusd_m5.csv 365
+python backtest.py synthetic_xauusd_m5.csv --balance 100
+```
+
+> ⚠️ Synthetic data has **no real market edge** — it only proves the harness
+> works. Judge profitability **only** on real MT5-exported history.
+
 ## Logs
 
 - **`trades_log.csv`** — one row per trade: `date, time, direction, entry_price,
