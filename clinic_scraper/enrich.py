@@ -44,6 +44,15 @@ INSTAGRAM_RESERVED = {
 # Valid IG handles: letters, digits, dot, underscore, up to 30 chars.
 _IG_HANDLE_RE = re.compile(r"^[a-z0-9._]{1,30}$")
 
+# Handles that belong to website builders / platforms, not the clinic — these
+# leak in from "Made with Wix" style footer links.
+INSTAGRAM_HANDLE_BLOCKLIST = {
+    "wix", "wixcom", "squarespace", "godaddy", "wordpress", "wordpressdotcom",
+    "weebly", "shopify", "linktree", "canva", "mailchimp", "vistaprint",
+    "fresha", "treatwell", "instagram", "facebook", "tiktok", "youtube",
+    "google", "explore", "share",
+}
+
 
 def instagram_handle(value: str) -> Optional[str]:
     """Extract a clean Instagram username from a URL or raw handle.
@@ -68,7 +77,9 @@ def instagram_handle(value: str) -> Optional[str]:
         candidate = value
 
     candidate = candidate.split("?")[0].lower()
-    if candidate in INSTAGRAM_RESERVED or not _IG_HANDLE_RE.match(candidate):
+    if candidate in INSTAGRAM_RESERVED or candidate in INSTAGRAM_HANDLE_BLOCKLIST:
+        return None
+    if not _IG_HANDLE_RE.match(candidate):
         return None
     return candidate
 

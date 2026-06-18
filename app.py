@@ -11,11 +11,69 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from clinic_scraper import config, crm, runlog, ui
+from clinic_scraper import config, crm, drafter, runlog, ui
 from clinic_scraper.models import LEAD_FIELDS
 from clinic_scraper.niche import NICHE_KEYWORDS
 from clinic_scraper.pipeline import run
 from clinic_scraper.sample import sample_leads
+
+
+def render_outreach(records: list[dict], key_prefix: str) -> None:
+    """A small outreach panel: pick a clinic, get a natural DM + email to copy."""
+    if not records:
+        return
+    with st.expander("✍️ Draft outreach (DM + email)", expanded=False):
+        sender = st.text_input(
+            "Your name (for the sign-off)",
+            value="",
+            placeholder="e.g. Abdi",
+            key=f"{key_prefix}_sender",
+        ) or drafter.DEFAULT_SENDER
+
+        names = [r.get("name", "") for r in records if r.get("name")]
+        choice = st.selectbox("Choose a clinic", names, key=f"{key_prefix}_pick")
+        rec = next((r for r in records if r.get("name") == choice), None)
+        if not rec:
+            return
+
+        niche = rec.get("niche", "")
+        dm = drafter.draft_dm(choice, niche, sender)
+        email = drafter.draft_email(choice, niche, sender)
+
+        target = rec.get("instagram_handle") or "(no Instagram found)"
+        st.markdown(f"**Instagram DM** → {target}")
+        st.code(dm, language=None)
+
+        st.markdown(f"**Email** → {rec.get('email') or '(no email found)'}")
+        st.caption(f"Subject: {email['subject']}")
+        st.code(email["body"], language=None)
+
+        # Bulk: every clinic in this view with its drafts, ready for a mail merge.
+        bulk = pd.DataFrame(
+            [
+                {
+                    "name": r.get("name", ""),
+                    "email": r.get("email", ""),
+                    "instagram_handle": r.get("instagram_handle", ""),
+                    "dm": drafter.draft_dm(r.get("name", ""), r.get("niche", ""), sender),
+                    "email_subject": drafter.draft_email(
+                        r.get("name", ""), r.get("niche", ""), sender
+                    )["subject"],
+                    "email_body": drafter.draft_email(
+                        r.get("name", ""), r.get("niche", ""), sender
+                    )["body"],
+                }
+                for r in records
+                if r.get("name")
+            ]
+        )
+        st.download_button(
+            "⬇️ Download all drafts (CSV)",
+            bulk.to_csv(index=False).encode("utf-8"),
+            file_name="runova_outreach_drafts.csv",
+            mime="text/csv",
+            key=f"{key_prefix}_bulk",
+        )
 
 st.set_page_config(
     page_title=f"{ui.APP_NAME} — {ui.APP_TAGLINE}",
@@ -208,6 +266,8 @@ with scrape_tab:
                 f"{result['updated']} refreshed."
             )
 
+        render_outreach(df.to_dict("records"), key_prefix="scrape")
+
     # Run history — every scrape is logged so you can track results over time.
     history = runlog.read_log()
     if history:
@@ -349,3 +409,5 @@ with crm_tab:
                 mime="text/csv",
                 use_container_width=True,
             )
+
+            render_outreach(rows, key_prefix="crm")
