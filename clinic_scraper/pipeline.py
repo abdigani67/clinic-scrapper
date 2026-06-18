@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence
 
 from . import niche as niche_mod
-from . import foursquare, osm, places, scoring
+from . import foursquare, osm, places, runlog, scoring
 from .enrich import enrich_lead, finalize_socials
 from .models import Lead
 
@@ -97,4 +97,12 @@ def run(
         log(f"{len(leads)}/{before} clinics scored >= {min_score}.")
 
     leads.sort(key=lambda lead: lead.dm_score, reverse=True)
+
+    # Record the run so results can be tracked over time. Never let a logging
+    # problem break a scrape.
+    try:
+        runlog.log_run(runlog.summarize(leads, source, queries))
+    except OSError:
+        pass
+
     return leads

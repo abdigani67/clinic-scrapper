@@ -11,7 +11,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from clinic_scraper import config, crm, ui
+from clinic_scraper import config, crm, runlog, ui
 from clinic_scraper.models import LEAD_FIELDS
 from clinic_scraper.niche import NICHE_KEYWORDS
 from clinic_scraper.pipeline import run
@@ -196,47 +196,84 @@ with scrape_tab:
                 f"{result['updated']} refreshed."
             )
 
+    # Run history — every scrape is logged so you can track results over time.
+    history = runlog.read_log()
+    if history:
+        with st.expander(f"📈 Run history ({len(history)} runs logged)"):
+            hist_df = pd.DataFrame(history)
+            st.dataframe(hist_df, use_container_width=True, hide_index=True)
+            st.download_button(
+                "⬇️ Download run history (CSV)",
+                hist_df.to_csv(index=False).encode("utf-8"),
+                file_name="scrape_log.csv",
+                mime="text/csv",
+            )
+
 
 # --------------------------------------------------------------------------- #
 # CRM tab
 # --------------------------------------------------------------------------- #
+STATUS_EMOJI = {
+    "new": "⚪ New",
+    "contacted": "📨 Contacted",
+    "replied": "💬 Replied",
+    "demo": "📅 Demo",
+    "won": "🏆 Won",
+    "lost": "❌ Lost",
+}
+
 with crm_tab:
     crm.init_db()
     s = crm.stats()
 
+    st.subheader("Your pipeline")
+    st.caption(
+        "Edit the **Stage** and **Notes** columns right in the table, then click "
+        "**Save changes**. Sort by DM score and work the 🟢 Hot leads first."
+    )
+
     if s["total"] == 0:
-        st.info("CRM is empty. Scrape some leads and hit **Push to CRM**.")
+        st.info(
+            "Your CRM is empty. Go to the **Scrape** tab, find clinics, and hit "
+            "**📇 Push to CRM** to start your pipeline."
+        )
     else:
         cols = st.columns(len(crm.STATUSES) + 1)
-        cols[0].metric("Total", s["total"])
+        cols[0].metric("Total leads", s["total"])
         for i, status in enumerate(crm.STATUSES, start=1):
-            cols[i].metric(status.title(), s["by_status"].get(status, 0))
+            cols[i].metric(
+                STATUS_EMOJI[status], s["by_status"].get(status, 0)
+            )
 
-        f1, f2, f3 = st.columns(3)
-        flt_status = f1.selectbox("Status", ["(all)"] + crm.STATUSES)
-        flt_niche = f2.selectbox(
-            "Niche", ["(all)"] + list(NICHE_KEYWORDS.keys())
-        )
-        flt_score = f3.slider("Min DM score", 0, 100, 0, step=5)
+        st.markdown("")
+        f1, f2, f3, f4 = st.columns([1.4, 1, 1, 1])
+        flt_name = f1.text_input("🔎 Search by name", placeholder="e.g. Quinn")
+        flt_status = f2.selectbox("Stage", ["(all)"] + crm.STATUSES)
+        flt_niche = f3.selectbox("Niche", ["(all)"] + list(NICHE_KEYWORDS.keys()))
+        flt_score = f4.slider("Min DM score", 0, 100, 0, step=5)
 
         rows = crm.list_leads(
             status=None if flt_status == "(all)" else flt_status,
             niche=None if flt_niche == "(all)" else flt_niche,
             min_score=flt_score,
         )
+        if flt_name:
+            needle = flt_name.lower()
+            rows = [r for r in rows if needle in (r.get("name") or "").lower()]
 
         if not rows:
-            st.info("No leads match these filters.")
+            st.info("No leads match these filters. Try clearing them.")
         else:
+            st.caption(f"Showing **{len(rows)}** of {s['total']} leads.")
             crm_df = pd.DataFrame(rows)
             crm_df["tier"] = crm_df["dm_score"].fillna(0).astype(int).apply(
                 ui.score_tier
             )
-            # Columns you edit live up front; keep the rest read-only.
+            # Editable columns first; the rest are read-only reference.
             view_cols = [
-                "name", "tier", "dm_score", "niche", "status", "notes", "phone",
+                "name", "tier", "dm_score", "status", "notes", "phone",
                 "email", "instagram_handle", "instagram", "website",
-                "rating", "reviews", "address", "dedup_key",
+                "niche", "rating", "reviews", "address", "dedup_key",
             ]
             editor_df = crm_df[view_cols].copy()
 
@@ -244,23 +281,34 @@ with crm_tab:
                 editor_df,
                 use_container_width=True,
                 hide_index=True,
+                height=520,
                 disabled=[c for c in view_cols if c not in ("status", "notes")],
                 column_config={
+                    "name": st.column_config.TextColumn("Clinic", width="medium"),
                     "tier": st.column_config.TextColumn("Tier"),
                     "dm_score": st.column_config.ProgressColumn(
                         "DM score", min_value=0, max_value=100, format="%d"
                     ),
                     "status": st.column_config.SelectboxColumn(
-                        "status", options=crm.STATUSES, required=True
+                        "Stage", options=crm.STATUSES, required=True
                     ),
-                    "instagram": st.column_config.LinkColumn("instagram"),
-                    "website": st.column_config.LinkColumn("website"),
-                    "dedup_key": None,  # hidden, but used as the row key on save
+                    "notes": st.column_config.TextColumn("Notes", width="medium"),
+                    "phone": st.column_config.TextColumn("Phone"),
+                    "email": st.column_config.TextColumn("Email"),
+                    "instagram_handle": st.column_config.TextColumn("IG handle"),
+                    "instagram": st.column_config.LinkColumn("Instagram"),
+                    "website": st.column_config.LinkColumn("Website"),
+                    "niche": st.column_config.TextColumn("Niche"),
+                    "rating": st.column_config.NumberColumn("Rating"),
+                    "reviews": st.column_config.NumberColumn("Reviews"),
+                    "address": st.column_config.TextColumn("Address"),
+                    "dedup_key": None,  # hidden, used as the row key on save
                 },
                 key="crm_editor",
             )
 
-            if st.button("💾 Save changes", type="primary"):
+            b1, b2 = st.columns([1, 1])
+            if b1.button("💾 Save changes", type="primary", use_container_width=True):
                 changed = 0
                 original = editor_df.set_index("dedup_key")
                 for _, row in edited.iterrows():
@@ -273,3 +321,11 @@ with crm_tab:
                         changed += 1
                 st.success(f"Saved {changed} change(s).")
                 st.rerun()
+
+            b2.download_button(
+                "⬇️ Export CRM (CSV)",
+                crm_df.drop(columns=["dedup_key"]).to_csv(index=False).encode("utf-8"),
+                file_name="lumora_crm_export.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
