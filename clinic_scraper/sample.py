@@ -10,6 +10,7 @@ from typing import List
 
 from . import niche as niche_mod
 from . import scoring
+from .enrich import finalize_socials
 from .models import Lead
 
 _RAW = [
@@ -64,6 +65,7 @@ def sample_leads() -> List[Lead]:
     leads = [Lead(**row) for row in _RAW]
     for lead in leads:
         niche_mod.annotate(lead)
+        finalize_socials(lead)
         scoring.score_lead(lead)
     leads.sort(key=lambda lead: lead.dm_score, reverse=True)
     return leads

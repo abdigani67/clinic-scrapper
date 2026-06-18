@@ -35,6 +35,59 @@ SOCIAL_HOSTS = {
     "tiktok": ("tiktok.com",),
 }
 
+# Instagram URL path segments that are NOT usernames (posts, reels, etc.).
+INSTAGRAM_RESERVED = {
+    "p", "reel", "reels", "explore", "stories", "tv", "accounts", "about",
+    "developer", "legal", "directory", "web", "sharer", "share", "embed",
+    "invites", "challenge", "session", "emails", "ads",
+}
+# Valid IG handles: letters, digits, dot, underscore, up to 30 chars.
+_IG_HANDLE_RE = re.compile(r"^[a-z0-9._]{1,30}$")
+
+
+def instagram_handle(value: str) -> Optional[str]:
+    """Extract a clean Instagram username from a URL or raw handle.
+
+    Returns the bare handle (no @, lowercased) or None if it's not a real
+    profile link (e.g. a /p/ post, /reel/, or share link).
+    """
+    if not value:
+        return None
+    value = value.strip()
+    if value.startswith("@"):
+        value = value[1:]
+
+    # If it looks like a URL, take the first path segment; else use as-is.
+    if "/" in value or "instagram.com" in value:
+        path = urlparse(value if "//" in value else "//" + value).path
+        segments = [s for s in path.split("/") if s]
+        if not segments:
+            return None
+        candidate = segments[0]
+    else:
+        candidate = value
+
+    candidate = candidate.split("?")[0].lower()
+    if candidate in INSTAGRAM_RESERVED or not _IG_HANDLE_RE.match(candidate):
+        return None
+    return candidate
+
+
+def normalize_instagram(value: str) -> tuple[str, str]:
+    """Return (clean_profile_url, "@handle") or ("", "") if not a real profile."""
+    handle = instagram_handle(value)
+    if not handle:
+        return "", ""
+    return f"https://www.instagram.com/{handle}", f"@{handle}"
+
+
+def finalize_socials(lead: Lead) -> Lead:
+    """Clean a lead's Instagram into a canonical URL + @handle (in place)."""
+    url, handle = normalize_instagram(lead.instagram)
+    lead.instagram = url
+    lead.instagram_handle = handle
+    return lead
+
 # Pages likely to hold contact details, tried in addition to the homepage.
 CONTACT_PATHS = ("/contact", "/contact-us", "/about", "/book", "/booking")
 
@@ -82,10 +135,15 @@ def _extract_from_html(html: str, base_url: str) -> dict:
 
     # Social links by host.
     for a in soup.find_all("a", href=True):
-        host = urlparse(urljoin(base_url, a["href"])).netloc.lower()
+        full = urljoin(base_url, a["href"])
+        host = urlparse(full).netloc.lower()
         for platform, hosts in SOCIAL_HOSTS.items():
-            if not found[platform] and any(h in host for h in hosts):
-                found[platform] = urljoin(base_url, a["href"]).split("?")[0]
+            if found[platform] or not any(h in host for h in hosts):
+                continue
+            # For Instagram, only accept real profile links (skip /p/, /reel/…).
+            if platform == "instagram" and not instagram_handle(full):
+                continue
+            found[platform] = full.split("?")[0]
 
     return found
 

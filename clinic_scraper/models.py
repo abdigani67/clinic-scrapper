@@ -18,6 +18,7 @@ LEAD_FIELDS = [
     "email",
     "website",
     "instagram",
+    "instagram_handle",
     "facebook",
     "tiktok",
     "rating",
@@ -38,6 +39,7 @@ class Lead:
     email: str = ""
     website: str = ""
     instagram: str = ""
+    instagram_handle: str = ""
     facebook: str = ""
     tiktok: str = ""
     rating: Optional[float] = None

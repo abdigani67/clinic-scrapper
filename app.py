@@ -210,8 +210,8 @@ with crm_tab:
             # Columns you edit live up front; keep the rest read-only.
             view_cols = [
                 "name", "dm_score", "niche", "status", "notes", "phone",
-                "email", "instagram", "website", "rating", "reviews",
-                "address", "dedup_key",
+                "email", "instagram_handle", "instagram", "website",
+                "rating", "reviews", "address", "dedup_key",
             ]
             editor_df = crm_df[view_cols].copy()
 

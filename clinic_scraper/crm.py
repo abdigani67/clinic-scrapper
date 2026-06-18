@@ -53,7 +53,8 @@ def init_db(db_path: str | Path = DEFAULT_DB) -> None:
                 phone           TEXT,
                 email           TEXT,
                 website         TEXT,
-                instagram       TEXT,
+                instagram        TEXT,
+                instagram_handle TEXT,
                 facebook        TEXT,
                 tiktok          TEXT,
                 rating          REAL,
@@ -68,6 +69,12 @@ def init_db(db_path: str | Path = DEFAULT_DB) -> None:
             )
             """
         )
+        # Migrate older databases: add any expected column that doesn't exist.
+        expected = LEAD_FIELDS + ["status", "notes", "created_at", "updated_at"]
+        existing = {row["name"] for row in conn.execute("PRAGMA table_info(leads)")}
+        for col in expected:
+            if col not in existing:
+                conn.execute(f"ALTER TABLE leads ADD COLUMN {col} TEXT")
 
 
 def upsert_leads(leads: Iterable[Lead], db_path: str | Path = DEFAULT_DB) -> dict:
@@ -120,7 +127,8 @@ def list_leads(
 ) -> List[dict]:
     """Return leads as dicts, with optional filters."""
     init_db(db_path)
-    clauses, params = ["dm_score >= ?"], [min_score]
+    # COALESCE so rows migrated from older DBs (NULL dm_score) still appear.
+    clauses, params = ["COALESCE(dm_score, 0) >= ?"], [min_score]
     if status:
         clauses.append("status = ?")
         params.append(status)

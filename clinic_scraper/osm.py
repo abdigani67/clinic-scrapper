@@ -20,7 +20,15 @@ from . import config
 from .models import Lead
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+
+# Several free Overpass mirrors. The main instance often returns 406/429 under
+# load, so we try them in order and use the first that answers.
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+]
 
 # OSM tag -> a pseudo Places "type" our niche.is_target() already understands.
 TAG_TYPE_MAP = {
@@ -61,24 +69,35 @@ def _geocode(location: str) -> Optional[tuple]:
     return (s, w, n, e)
 
 
-@retry(
-    stop=stop_after_attempt(4),
-    wait=wait_exponential(multiplier=2, min=2, max=16),
-    reraise=True,
-)
 def _overpass(bbox: tuple) -> list:
+    """Run an Overpass query, trying each mirror until one succeeds."""
     south, west, north, east = bbox
     box = f"({south},{west},{north},{east})"
     selectors = "".join(
         f'nwr["{k}"="{v}"]{box};' for (k, v) in TAG_TYPE_MAP
     )
-    ql = f"[out:json][timeout:60];({selectors});out center tags;"
-    resp = requests.post(
-        OVERPASS_URL, data={"data": ql}, headers=_headers(),
-        timeout=max(config.REQUEST_TIMEOUT, 60),
+    ql = f"[out:json][timeout:60];({selectors});out tags center;"
+
+    last_error: Optional[Exception] = None
+    for endpoint in OVERPASS_ENDPOINTS:
+        try:
+            resp = requests.post(
+                endpoint,
+                data={"data": ql},
+                headers=_headers(),
+                timeout=max(config.REQUEST_TIMEOUT, 60),
+            )
+            resp.raise_for_status()
+            return resp.json().get("elements", [])
+        except (requests.RequestException, ValueError) as exc:
+            last_error = exc
+            continue
+
+    raise RuntimeError(
+        "All OpenStreetMap (Overpass) servers were busy or unreachable. "
+        "Please wait a minute and try again. "
+        f"(last error: {last_error})"
     )
-    resp.raise_for_status()
-    return resp.json().get("elements", [])
 
 
 def _location_from_query(query: str) -> str:

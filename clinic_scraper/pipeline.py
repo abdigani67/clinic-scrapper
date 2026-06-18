@@ -6,7 +6,7 @@ from typing import Callable, List, Optional, Sequence
 
 from . import niche as niche_mod
 from . import osm, places, scoring
-from .enrich import enrich_lead
+from .enrich import enrich_lead, finalize_socials
 from .models import Lead
 
 # Available clinic data sources, mapped to their search function.
@@ -85,8 +85,10 @@ def run(
             log(f"Enriching {i}/{len(leads)}: {lead.name}")
             enrich_lead(lead)
 
-    # Score after enrichment (email/socials feed the score), then filter + sort.
+    # Normalize Instagram to a clean profile URL + @handle (covers both
+    # sources and leads with no website), then score.
     for lead in leads:
+        finalize_socials(lead)
         scoring.score_lead(lead)
     if min_score:
         before = len(leads)
