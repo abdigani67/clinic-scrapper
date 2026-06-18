@@ -270,13 +270,24 @@ drawdown) before committing capital.
 
 ### 1. Get historical M5 data
 
-Export XAUUSD **M5** candles to a CSV with columns `time, open, high, low, close`
-(a `volume` column is optional). The easiest source is your own MT5 terminal
-(it's the same price history you'll trade on):
+The easiest way is the included **`export_data.py`**, which pulls history straight
+from your logged-in IC Markets MT5 terminal (Windows). Run it once:
 
-- In MT5: `View -> Symbols -> XAUUSD -> Bars`, choose **M5** and a date range,
-  then export. Or use a small script with `mt5.copy_rates_range(...)` and
-  `pandas.to_csv()`.
+```bash
+python export_data.py                       # 2 years of M5 -> xauusd_m5.csv
+python export_data.py --years 3 --out gold_m5.csv
+```
+
+It writes a ready-to-use CSV and prints the exact `compare.py` / `backtest.py`
+command to run next (including the right `--data-tz` for the IC Markets server
+clock, which is GMT+2/+3, not your local time).
+
+> If you get fewer bars than expected: in MT5 set *Tools → Options → Charts →
+> Max bars in chart* to **Unlimited**, scroll back on the XAUUSD M5 chart to
+> force a history download, then re-run.
+
+Alternatively, export manually (`View → Symbols → XAUUSD → Bars`) to a CSV with
+columns `time, open, high, low, close` (a `volume` column is optional).
 
 ### 2. Run it
 
