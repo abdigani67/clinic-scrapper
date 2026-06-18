@@ -30,6 +30,7 @@ FIELD_MASK = ",".join(
         "rating",
         "userRatingCount",
         "googleMapsUri",
+        "types",
     ]
 )
 
@@ -67,6 +68,7 @@ def _place_to_lead(place: dict, query: str) -> Lead:
         google_maps_url=place.get("googleMapsUri", ""),
         place_id=place.get("id", ""),
         query=query,
+        place_types=place.get("types", []) or [],
     )
 
 
