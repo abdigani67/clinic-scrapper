@@ -10,7 +10,12 @@ import time
 from typing import Iterator, List, Optional
 
 import requests
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from . import config
 from .models import Lead
@@ -35,9 +40,12 @@ FIELD_MASK = ",".join(
 )
 
 
+# Only retry transient network errors — not 4xx client errors, which won't
+# fix themselves (a 403 just means "not enabled / billing off").
 @retry(
     stop=stop_after_attempt(4),
     wait=wait_exponential(multiplier=2, min=2, max=16),
+    retry=retry_if_exception_type(requests.RequestException),
     reraise=True,
 )
 def _post(payload: dict, api_key: str) -> dict:
@@ -52,7 +60,24 @@ def _post(payload: dict, api_key: str) -> dict:
         headers=headers,
         timeout=config.REQUEST_TIMEOUT,
     )
-    resp.raise_for_status()
+    if 400 <= resp.status_code < 500:
+        # Surface Google's own explanation instead of a raw traceback.
+        try:
+            message = resp.json().get("error", {}).get("message", "")
+        except ValueError:
+            message = resp.text[:200]
+        hint = ""
+        if resp.status_code == 403:
+            hint = (
+                " — this usually means the 'Places API (New)' isn't enabled or "
+                "billing isn't active on your Google Cloud project."
+            )
+        elif resp.status_code in (400, 401):
+            hint = " — check that your GOOGLE_PLACES_API_KEY is correct."
+        raise RuntimeError(
+            f"Google Places API error {resp.status_code}: {message}{hint}"
+        )
+    resp.raise_for_status()  # 5xx -> retried as a transient error
     return resp.json()
 
 
