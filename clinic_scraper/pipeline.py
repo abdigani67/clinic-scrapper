@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence
 
 from . import niche as niche_mod
-from . import osm, places, scoring
+from . import foursquare, osm, places, scoring
 from .enrich import enrich_lead, finalize_socials
 from .models import Lead
 
@@ -13,6 +13,7 @@ from .models import Lead
 SOURCES = {
     "google": places.search_clinics,
     "osm": osm.search_clinics,
+    "foursquare": foursquare.search_clinics,
 }
 
 

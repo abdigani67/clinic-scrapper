@@ -41,10 +41,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--source",
-        choices=["osm", "google"],
+        choices=["osm", "foursquare", "google"],
         default="osm",
-        help="Data source: osm (free, no key) or google (needs API key). "
-        "Default: osm.",
+        help="Data source: osm (free, no key), foursquare (free key) or "
+        "google (needs billing-enabled key). Default: osm.",
     )
     parser.add_argument(
         "--max",

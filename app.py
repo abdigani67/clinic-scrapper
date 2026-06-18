@@ -48,11 +48,19 @@ with scrape_tab:
         st.header("Search")
         source_label = st.radio(
             "Data source",
-            ["OpenStreetMap (free)", "Google Places (needs API key)"],
-            help="OpenStreetMap is free with no key. Google has ratings/reviews "
-            "but needs a billing-enabled API key.",
+            [
+                "OpenStreetMap (free)",
+                "Foursquare (free key)",
+                "Google Places (needs API key)",
+            ],
+            help="OpenStreetMap needs no key. Foursquare needs a free key (no "
+            "card). Google has ratings/reviews but needs a billing-enabled key.",
         )
-        source = "osm" if source_label.startswith("OpenStreetMap") else "google"
+        source = {
+            "OpenStreetMap (free)": "osm",
+            "Foursquare (free key)": "foursquare",
+            "Google Places (needs API key)": "google",
+        }[source_label]
         term = st.text_input("Search term", value="aesthetic clinic")
         cities_raw = st.text_area(
             "Cities (one per line)",
@@ -87,7 +95,13 @@ with scrape_tab:
             "Using **OpenStreetMap** — free, no API key needed. Add one or more "
             "cities, then hit **Scrape leads**. (No star ratings from this source.)"
         )
-    elif not config.GOOGLE_PLACES_API_KEY:
+    elif source == "foursquare" and not config.FOURSQUARE_API_KEY:
+        st.info(
+            "Foursquare needs a `FOURSQUARE_API_KEY` in your `.env` file. Get a "
+            "free one (no card) at foursquare.com/developers, or switch to "
+            "**OpenStreetMap (free)**."
+        )
+    elif source == "google" and not config.GOOGLE_PLACES_API_KEY:
         st.info(
             "Google Places needs a `GOOGLE_PLACES_API_KEY` in a `.env` file "
             "(see `.env.example`). No key yet? Switch the **Data source** above to "

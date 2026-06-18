@@ -22,7 +22,10 @@ Pick a source in the UI sidebar or with `--source` on the CLI:
 
 - **OpenStreetMap (`osm`)** — **free, no API key, no billing.** Great to start
   immediately. Uses Nominatim + Overpass. No star ratings/reviews.
-- **Google Places (`google`)** — richer (includes ratings & review counts) but
+- **Foursquare (`foursquare`)** — needs a **free** Service Key (no credit card)
+  from [foursquare.com/developers](https://foursquare.com/developers/). Good
+  global coverage including the UK. Set `FOURSQUARE_API_KEY` in `.env`.
+- **Google Places (`google`)** — richest (includes ratings & review counts) but
   needs a billing-enabled API key (see Setup).
 
 ## Niche filtering

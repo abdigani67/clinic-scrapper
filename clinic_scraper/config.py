@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
+FOURSQUARE_API_KEY = os.getenv("FOURSQUARE_API_KEY", "").strip()
 
 # Polite defaults so we don't hammer clinic websites.
 REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "15"))
