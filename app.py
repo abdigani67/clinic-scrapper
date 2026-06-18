@@ -15,6 +15,7 @@ from clinic_scraper import config, crm
 from clinic_scraper.models import LEAD_FIELDS
 from clinic_scraper.niche import NICHE_KEYWORDS
 from clinic_scraper.pipeline import run
+from clinic_scraper.sample import sample_leads
 
 st.set_page_config(page_title="Clinic Lead Scraper + CRM", page_icon="✨", layout="wide")
 
@@ -65,11 +66,20 @@ with scrape_tab:
             help="Visits each clinic's site. Slower, but finds emails & Instagram.",
         )
         go = st.button("🔎 Scrape leads", type="primary", use_container_width=True)
+        demo = st.button("🧪 Load demo data", use_container_width=True)
+
+    if demo:
+        leads = sample_leads()
+        st.session_state["leads"] = leads
+        st.session_state["df"] = pd.DataFrame(
+            [lead.as_row() for lead in leads], columns=LEAD_FIELDS
+        )
 
     if not config.GOOGLE_PLACES_API_KEY:
-        st.warning(
-            "No `GOOGLE_PLACES_API_KEY` found. Add it to a `.env` file "
-            "(see `.env.example`) before scraping."
+        st.info(
+            "No `GOOGLE_PLACES_API_KEY` set yet — add it to a `.env` file "
+            "(see `.env.example`) to scrape live. Meanwhile, hit "
+            "**🧪 Load demo data** to explore the UI."
         )
 
     if go:
