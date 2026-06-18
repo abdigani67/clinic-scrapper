@@ -11,31 +11,20 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from clinic_scraper import config, crm
+from clinic_scraper import config, crm, ui
 from clinic_scraper.models import LEAD_FIELDS
 from clinic_scraper.niche import NICHE_KEYWORDS
 from clinic_scraper.pipeline import run
 from clinic_scraper.sample import sample_leads
 
-st.set_page_config(page_title="Clinic Lead Scraper + CRM", page_icon="✨", layout="wide")
-
-st.markdown(
-    """
-    <style>
-      .block-container {padding-top: 2.2rem;}
-      h1 {font-weight: 800; letter-spacing: -0.02em;}
-      [data-testid="stMetric"] {background: #f7f7fb; border-radius: 12px;
-        padding: 0.75rem 1rem;}
-    </style>
-    """,
-    unsafe_allow_html=True,
+st.set_page_config(
+    page_title=f"{ui.APP_NAME} — {ui.APP_TAGLINE}",
+    page_icon=ui.APP_ICON,
+    layout="wide",
 )
 
-st.title("✨ Clinic Lead Scraper + CRM")
-st.caption(
-    "Find aesthetic clinics with email + socials, score them for your AI DM "
-    "service, and work them through a pipeline."
-)
+st.markdown(ui.CSS, unsafe_allow_html=True)
+st.markdown(ui.hero_html(), unsafe_allow_html=True)
 
 scrape_tab, crm_tab = st.tabs(["🔎 Scrape", "📇 CRM"])
 
@@ -159,11 +148,16 @@ with scrape_tab:
                 "DM-ready score** or clear the **Niches** filter in the sidebar."
             )
 
+        # Add a readable tier badge next to the numeric score.
+        show_df = df.copy()
+        show_df.insert(1, "tier", show_df["dm_score"].apply(ui.score_tier))
+
         st.dataframe(
-            df,
+            show_df,
             use_container_width=True,
             hide_index=True,
             column_config={
+                "tier": st.column_config.TextColumn("Tier"),
                 "dm_score": st.column_config.ProgressColumn(
                     "DM score", min_value=0, max_value=100, format="%d"
                 ),
@@ -235,9 +229,12 @@ with crm_tab:
             st.info("No leads match these filters.")
         else:
             crm_df = pd.DataFrame(rows)
+            crm_df["tier"] = crm_df["dm_score"].fillna(0).astype(int).apply(
+                ui.score_tier
+            )
             # Columns you edit live up front; keep the rest read-only.
             view_cols = [
-                "name", "dm_score", "niche", "status", "notes", "phone",
+                "name", "tier", "dm_score", "niche", "status", "notes", "phone",
                 "email", "instagram_handle", "instagram", "website",
                 "rating", "reviews", "address", "dedup_key",
             ]
@@ -249,6 +246,7 @@ with crm_tab:
                 hide_index=True,
                 disabled=[c for c in view_cols if c not in ("status", "notes")],
                 column_config={
+                    "tier": st.column_config.TextColumn("Tier"),
                     "dm_score": st.column_config.ProgressColumn(
                         "DM score", min_value=0, max_value=100, format="%d"
                     ),
