@@ -152,15 +152,27 @@ with scrape_tab:
         show_df = df.copy()
         show_df.insert(1, "tier", show_df["dm_score"].apply(ui.score_tier))
 
+        # Show the essentials by default; the rest behind a toggle so the table
+        # stays clean and uncluttered.
+        show_all = st.toggle("Show all columns", value=False, key="scrape_all")
+        essential = [
+            "name", "tier", "dm_score", "niche",
+            "phone", "email", "instagram_handle", "website",
+        ]
+        table_df = show_df if show_all else show_df[essential]
+
         st.dataframe(
-            show_df,
+            table_df,
             use_container_width=True,
             hide_index=True,
+            height=560,
             column_config={
+                "name": st.column_config.TextColumn("name", width="medium"),
                 "tier": st.column_config.TextColumn("Tier"),
                 "dm_score": st.column_config.ProgressColumn(
                     "DM score", min_value=0, max_value=100, format="%d"
                 ),
+                "instagram_handle": st.column_config.TextColumn("instagram handle"),
                 "website": st.column_config.LinkColumn("website"),
                 "instagram": st.column_config.LinkColumn("instagram"),
                 "facebook": st.column_config.LinkColumn("facebook"),
@@ -269,12 +281,20 @@ with crm_tab:
             crm_df["tier"] = crm_df["dm_score"].fillna(0).astype(int).apply(
                 ui.score_tier
             )
-            # Editable columns first; the rest are read-only reference.
-            view_cols = [
+            # Essentials by default; full detail behind a toggle for a clean grid.
+            show_all_crm = st.toggle(
+                "Show all columns", value=False, key="crm_all"
+            )
+            essential_cols = [
+                "name", "tier", "dm_score", "status", "notes",
+                "phone", "email", "instagram_handle", "website", "dedup_key",
+            ]
+            full_cols = [
                 "name", "tier", "dm_score", "status", "notes", "phone",
                 "email", "instagram_handle", "instagram", "website",
                 "niche", "rating", "reviews", "address", "dedup_key",
             ]
+            view_cols = full_cols if show_all_crm else essential_cols
             editor_df = crm_df[view_cols].copy()
 
             edited = st.data_editor(
