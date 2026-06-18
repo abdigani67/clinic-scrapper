@@ -10,6 +10,7 @@ website-enrichment and scoring steps still run as usual.
 
 from __future__ import annotations
 
+import re
 import time
 from typing import List, Optional
 
@@ -31,15 +32,34 @@ OVERPASS_ENDPOINTS = [
 ]
 
 # OSM tag -> a pseudo Places "type" our niche.is_target() already understands.
+# Note: generic "clinic" tags (amenity=clinic / healthcare=clinic) are
+# deliberately NOT searched as categories — they mostly return GP surgeries
+# and physios. Aesthetic clinics are caught precisely by the name search below.
 TAG_TYPE_MAP = {
     ("shop", "beauty"): "beauty_salon",
+    ("shop", "cosmetics"): "beauty_salon",
     ("leisure", "spa"): "spa",
     ("amenity", "spa"): "spa",
-    ("healthcare", "clinic"): "medical_clinic",
-    ("amenity", "clinic"): "medical_clinic",
     ("healthcare", "cosmetic_surgery"): "medical_clinic",
     ("healthcare", "dermatology"): "skin_care_clinic",
+    ("healthcare", "cosmetic"): "skin_care_clinic",
+    ("healthcare", "aesthetics"): "skin_care_clinic",
 }
+
+# Words that, when they appear in a business NAME, strongly suggest an
+# aesthetic clinic. Used both to search Overpass by name (big recall boost)
+# and to mark name-matched results as targets.
+AESTHETIC_NAME_TERMS = [
+    "botox", "filler", "fillers", "lip filler", "aesthetic", "aesthetics",
+    "medspa", "med spa", "med-spa", "medical spa", "skin clinic", "skincare",
+    "skin care", "laser", "cosmetic", "dermatolog", "injectable", "rejuven",
+    "anti-wrinkle", "anti wrinkle", "wrinkle", "hydrafacial", "microneedling",
+    "lip enhancement", "dermal", "beauty clinic", "aesthetic clinic",
+]
+# Overpass regex (case-insensitive applied at query time). Spaces and "-"
+# are literal in the regex, so the terms can be used as-is.
+_NAME_REGEX = "|".join(AESTHETIC_NAME_TERMS)
+_NAME_MATCH_RE = re.compile(_NAME_REGEX, re.IGNORECASE)
 
 
 def _headers() -> dict:
@@ -73,10 +93,14 @@ def _overpass(bbox: tuple) -> list:
     """Run an Overpass query, trying each mirror until one succeeds."""
     south, west, north, east = bbox
     box = f"({south},{west},{north},{east})"
+    # 1) category-tag matches, 2) any business with a "beauty" tag,
+    # 3) anything whose NAME looks aesthetic (biggest recall boost).
     selectors = "".join(
         f'nwr["{k}"="{v}"]{box};' for (k, v) in TAG_TYPE_MAP
     )
-    ql = f"[out:json][timeout:60];({selectors});out tags center;"
+    selectors += f'nwr["beauty"]{box};'
+    selectors += f'nwr["name"~"{_NAME_REGEX}",i]{box};'
+    ql = f"[out:json][timeout:90];({selectors});out tags center;"
 
     last_error: Optional[Exception] = None
     for endpoint in OVERPASS_ENDPOINTS:
@@ -130,11 +154,19 @@ def _social_url(value: str, base: str) -> str:
 
 def _element_to_lead(el: dict, query: str) -> Lead:
     tags = el.get("tags", {})
+    name = tags.get("name", "")
     pseudo_types = [
         TAG_TYPE_MAP[(k, v)]
         for (k, v) in TAG_TYPE_MAP
         if tags.get(k) == v
     ]
+    if "beauty" in tags:
+        pseudo_types.append("beauty_salon")
+    # Name-matched results may have no useful category tag; mark them as a
+    # target so the shared niche filter keeps them.
+    if _NAME_MATCH_RE.search(name):
+        pseudo_types.append("skin_care_clinic")
+    pseudo_types = list(dict.fromkeys(pseudo_types))
     return Lead(
         name=tags.get("name", ""),
         address=_address(tags),

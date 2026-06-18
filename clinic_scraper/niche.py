@@ -16,7 +16,8 @@ from .models import Lead
 NICHE_KEYWORDS = {
     "Injectables": [
         "botox", "dysport", "jeuveau", "xeomin", "tox", "filler", "dermal filler",
-        "lip filler", "injectable", "sculptra", "kybella",
+        "lip filler", "injectable", "sculptra", "kybella", "anti-wrinkle",
+        "anti wrinkle", "wrinkle", "lip enhancement",
     ],
     "Laser & Skin": [
         "laser", "ipl", "hair removal", "photofacial", "resurfacing", "morpheus",
@@ -24,8 +25,8 @@ NICHE_KEYWORDS = {
     ],
     "Facials & Skincare": [
         "facial", "hydrafacial", "chemical peel", "peel", "microneedling",
-        "dermaplaning", "skincare", "skin care", "esthetic", "esthetician",
-        "aesthetician",
+        "dermaplaning", "skincare", "skin care", "skin clinic", "esthetic",
+        "esthetician", "aesthetician",
     ],
     "Med Spa": [
         "med spa", "medspa", "medi spa", "medical spa", "medi-spa", "aesthetic",

@@ -59,7 +59,7 @@ with scrape_tab:
             value="Austin TX\nMiami FL\nDallas TX",
             help="Each city becomes its own search. Blank = search the term as-is.",
         )
-        max_results = st.slider("Max results per city", 10, 60, 40, step=10)
+        max_results = st.slider("Max results per city", 10, 120, 60, step=10)
         st.divider()
         st.subheader("Filters")
         chosen_niches = st.multiselect(
