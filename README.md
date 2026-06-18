@@ -11,9 +11,19 @@ expose, classifies each into an **aesthetic niche**, ranks it with a
 
 | Field | Source |
 |---|---|
-| Name, Address, Phone, Website, Rating, Reviews | Google Places |
+| Name, Address, Phone, Website | Google Places **or** OpenStreetMap |
+| Rating, Reviews | Google Places only |
 | Email, Instagram, Facebook, TikTok | Clinic website crawl |
 | Niche, DM-ready score | Derived (see below) |
+
+## Data sources
+
+Pick a source in the UI sidebar or with `--source` on the CLI:
+
+- **OpenStreetMap (`osm`)** — **free, no API key, no billing.** Great to start
+  immediately. Uses Nominatim + Overpass. No star ratings/reviews.
+- **Google Places (`google`)** — richer (includes ratings & review counts) but
+  needs a billing-enabled API key (see Setup).
 
 ## Niche filtering
 

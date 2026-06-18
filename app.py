@@ -46,6 +46,13 @@ scrape_tab, crm_tab = st.tabs(["🔎 Scrape", "📇 CRM"])
 with scrape_tab:
     with st.sidebar:
         st.header("Search")
+        source_label = st.radio(
+            "Data source",
+            ["OpenStreetMap (free)", "Google Places (needs API key)"],
+            help="OpenStreetMap is free with no key. Google has ratings/reviews "
+            "but needs a billing-enabled API key.",
+        )
+        source = "osm" if source_label.startswith("OpenStreetMap") else "google"
         term = st.text_input("Search term", value="aesthetic clinic")
         cities_raw = st.text_area(
             "Cities (one per line)",
@@ -75,11 +82,16 @@ with scrape_tab:
             [lead.as_row() for lead in leads], columns=LEAD_FIELDS
         )
 
-    if not config.GOOGLE_PLACES_API_KEY:
+    if source == "osm":
         st.info(
-            "No `GOOGLE_PLACES_API_KEY` set yet — add it to a `.env` file "
-            "(see `.env.example`) to scrape live. Meanwhile, hit "
-            "**🧪 Load demo data** to explore the UI."
+            "Using **OpenStreetMap** — free, no API key needed. Add one or more "
+            "cities, then hit **Scrape leads**. (No star ratings from this source.)"
+        )
+    elif not config.GOOGLE_PLACES_API_KEY:
+        st.info(
+            "Google Places needs a `GOOGLE_PLACES_API_KEY` in a `.env` file "
+            "(see `.env.example`). No key yet? Switch the **Data source** above to "
+            "**OpenStreetMap (free)**, or hit **🧪 Load demo data** to explore."
         )
 
     if go:
@@ -95,6 +107,7 @@ with scrape_tab:
                     enrich=enrich,
                     niches=chosen_niches or None,
                     min_score=min_score,
+                    source=source,
                     progress=lambda msg: status.write(f"`{msg}`"),
                 )
         except RuntimeError as exc:

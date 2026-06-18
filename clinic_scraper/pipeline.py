@@ -5,9 +5,15 @@ from __future__ import annotations
 from typing import Callable, List, Optional, Sequence
 
 from . import niche as niche_mod
-from . import places, scoring
+from . import osm, places, scoring
 from .enrich import enrich_lead
 from .models import Lead
+
+# Available clinic data sources, mapped to their search function.
+SOURCES = {
+    "google": places.search_clinics,
+    "osm": osm.search_clinics,
+}
 
 
 def dedupe(leads: Sequence[Lead]) -> List[Lead]:
@@ -30,6 +36,7 @@ def run(
     filter_niches: bool = True,
     niches: Optional[Sequence[str]] = None,
     min_score: int = 0,
+    source: str = "google",
     api_key: Optional[str] = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> List[Lead]:
@@ -38,20 +45,22 @@ def run(
     Steps: search -> dedupe -> niche filter -> enrich -> score -> score filter.
 
     Args:
+        source: which data source to search ("google" or "osm").
         filter_niches: drop leads that aren't aesthetic-clinic targets.
         niches: if given, keep only leads matching one of these niche names.
         min_score: drop leads whose final DM-ready score is below this.
         progress: optional callback for status messages (CLI/UI).
     """
     log = progress or (lambda _msg: None)
+    if source not in SOURCES:
+        raise ValueError(f"Unknown source {source!r}. Valid: {list(SOURCES)}")
+    search = SOURCES[source]
 
     raw: List[Lead] = []
     for query in queries:
-        log(f"Searching: {query}")
+        log(f"Searching ({source}): {query}")
         raw.extend(
-            places.search_clinics(
-                query, max_results=max_results_per_query, api_key=api_key
-            )
+            search(query, max_results=max_results_per_query, api_key=api_key)
         )
 
     leads = dedupe(raw)

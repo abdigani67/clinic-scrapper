@@ -40,10 +40,17 @@ def main(argv: list[str] | None = None) -> int:
         help="City to scope the search to. Repeat for multiple cities.",
     )
     parser.add_argument(
+        "--source",
+        choices=["osm", "google"],
+        default="osm",
+        help="Data source: osm (free, no key) or google (needs API key). "
+        "Default: osm.",
+    )
+    parser.add_argument(
         "--max",
         type=int,
         default=60,
-        help="Max results per query (default 60, the API ceiling).",
+        help="Max results per query (default 60).",
     )
     parser.add_argument(
         "--niche",
@@ -94,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
             filter_niches=not args.no_filter,
             niches=args.niche,
             min_score=args.min_score,
+            source=args.source,
             progress=lambda msg: print(f"  {msg}", file=sys.stderr),
         )
     except RuntimeError as exc:
