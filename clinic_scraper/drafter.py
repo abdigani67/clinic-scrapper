@@ -41,22 +41,25 @@ def draft_dm(name: str, niche: str = "", sender: str = DEFAULT_SENDER) -> str:
     options = [
         (
             f"Hi {name} 👋 I've been following {phrase} and it looks brilliant. "
-            "Quick question — when an enquiry lands in your DMs while you're with "
-            "a client, who picks it up? I help aesthetic clinics reply to those "
-            "instantly, day or night, so none get missed. Would it be ok to show "
-            "you a quick example?"
+            "Quick question, when an enquiry lands in your DMs while you're with a "
+            "client, who picks it up? I set aesthetic clinics up with an assistant "
+            "that replies instantly 24/7, answers the price questions, and flags "
+            "the keen ones to your team. Happy to show you a quick example if "
+            "you're curious."
         ),
         (
-            f"Hey {name}! Really like what you're doing with {phrase}. I work with "
-            "clinics to make sure no DM enquiry goes unanswered — even evenings "
-            "and weekends. Not trying to sell you anything today, just wondered if "
-            "missed messages is something you've run into?"
+            f"Hey {name}! Really like what you're doing with {phrase}. I help "
+            "clinics make sure no DM enquiry slips through, even evenings and "
+            "weekends. It replies instantly, quotes your treatment prices, and "
+            "passes the hottest leads straight to you. Not pitching you today, "
+            "just wondered if missed messages is something you've run into?"
         ),
         (
             f"Hi {name} 😊 Came across your clinic and {phrase} stood out. Out of "
-            "interest, how do you currently handle Instagram enquiries when things "
-            "get busy? I set clinics up with something that replies and books "
-            "people in automatically — happy to share more if it'd be useful."
+            "interest, how do you handle Instagram enquiries when things get busy? "
+            "I run something for clinics that answers instantly round the clock, "
+            "quotes prices, and books the keen ones in. Happy to share more if "
+            "it'd be useful."
         ),
     ]
     return _pick(name, options)
@@ -78,15 +81,16 @@ def draft_email(
     body = (
         f"Hi {name} team,\n\n"
         f"I came across your clinic and really liked {phrase}.\n\n"
-        "I wanted to ask — when enquiries come in through Instagram or your "
+        "I wanted to ask, when enquiries come in through Instagram or your "
         "website outside of clinic hours, who tends to respond? A lot of the "
-        "clinics I speak to quietly lose potential bookings simply because "
-        "messages aren't seen until the next day.\n\n"
-        "I help clinics with an assistant that replies to DMs and enquiries "
-        "instantly, around the clock — it answers the common questions and books "
-        "consultations straight into the calendar, all in your clinic's tone.\n\n"
-        "No hard sell at all — if you're open to it, I'd be glad to send over a "
-        f"short example so you can see how it'd work for {name}.\n\n"
+        "clinics I speak to quietly lose potential bookings because messages "
+        "aren't seen until the next day.\n\n"
+        "Runova handles that with an assistant that replies to DMs instantly, "
+        "around the clock. It answers the common questions, quotes your treatment "
+        "prices, scores each enquiry by how ready they are to book, and passes "
+        "the hottest leads straight to your team, all in your clinic's tone.\n\n"
+        "No hard sell at all. If you're open to it, I'd be glad to send over a "
+        f"short example so you can see how it would work for {name}.\n\n"
         "Either way, keep up the great work.\n\n"
         f"Best,\n{sender or DEFAULT_SENDER}"
     )
