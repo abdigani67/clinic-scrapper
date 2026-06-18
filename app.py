@@ -105,8 +105,6 @@ with scrape_tab:
                     queries,
                     max_results_per_query=max_results,
                     enrich=enrich,
-                    niches=chosen_niches or None,
-                    min_score=min_score,
                     source=source,
                     progress=lambda msg: status.write(f"`{msg}`"),
                 )
@@ -123,13 +121,29 @@ with scrape_tab:
             )
 
     if "df" in st.session_state:
-        df = st.session_state["df"]
+        full_df = st.session_state["df"]
+
+        # Live filters — applied to the already-scraped results so moving the
+        # sliders updates the table instantly (no need to re-scrape).
+        df = full_df[full_df["dm_score"] >= min_score]
+        if chosen_niches:
+            df = df[
+                df["niche"].apply(
+                    lambda n: any(sel in (n or "") for sel in chosen_niches)
+                )
+            ]
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Clinics", len(df))
+        c1.metric("Showing", f"{len(df)} / {len(full_df)}")
         c2.metric("With email", int((df["email"] != "").sum()))
         c3.metric("With Instagram", int((df["instagram"] != "").sum()))
         c4.metric("Hot (score ≥ 60)", int((df["dm_score"] >= 60).sum()))
+
+        if len(df) == 0:
+            st.warning(
+                "No leads match the current filters. Lower the **Minimum "
+                "DM-ready score** or clear the **Niches** filter in the sidebar."
+            )
 
         st.dataframe(
             df,

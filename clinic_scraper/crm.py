@@ -123,12 +123,13 @@ def list_leads(
     status: Optional[str] = None,
     niche: Optional[str] = None,
     min_score: int = 0,
-    order_by: str = "dm_score DESC",
+    order_by: str = "CAST(COALESCE(dm_score, 0) AS INTEGER) DESC",
 ) -> List[dict]:
     """Return leads as dicts, with optional filters."""
     init_db(db_path)
-    # COALESCE so rows migrated from older DBs (NULL dm_score) still appear.
-    clauses, params = ["COALESCE(dm_score, 0) >= ?"], [min_score]
+    # CAST + COALESCE so the comparison is numeric even when dm_score was
+    # added as a TEXT column by an older-DB migration (and NULLs count as 0).
+    clauses, params = ["CAST(COALESCE(dm_score, 0) AS INTEGER) >= ?"], [min_score]
     if status:
         clauses.append("status = ?")
         params.append(status)
