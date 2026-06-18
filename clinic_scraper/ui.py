@@ -5,7 +5,7 @@ Purely cosmetic — none of this touches the scraping/scoring/CRM logic.
 
 from __future__ import annotations
 
-APP_NAME = "Lumora"
+APP_NAME = "Runova"
 APP_TAGLINE = "Clinic Lead Intelligence for your AI receptionist"
 APP_ICON = "💎"
 
@@ -34,7 +34,7 @@ CSS = f"""
   h1, h2, h3 {{font-weight: 800; letter-spacing: -0.02em; color: {_INK};}}
 
   /* Hero banner */
-  .lumora-hero {{
+  .runova-hero {{
     background: linear-gradient(120deg, {_VIOLET_DARK} 0%, {_VIOLET} 55%, #A855F7 100%);
     border-radius: 20px;
     padding: 1.8rem 2.2rem;
@@ -42,14 +42,14 @@ CSS = f"""
     color: #fff;
     box-shadow: 0 18px 40px -16px rgba(124,58,237,0.55);
   }}
-  .lumora-hero .brand {{
+  .runova-hero .brand {{
     font-size: 0.82rem; font-weight: 700; letter-spacing: 0.18em;
     text-transform: uppercase; opacity: 0.85;
   }}
-  .lumora-hero h1 {{
+  .runova-hero h1 {{
     color: #fff; font-size: 2.1rem; font-weight: 900; margin: 0.15rem 0 0.35rem;
   }}
-  .lumora-hero p {{margin: 0; font-size: 1.02rem; opacity: 0.92; font-weight: 400;}}
+  .runova-hero p {{margin: 0; font-size: 1.02rem; opacity: 0.92; font-weight: 400;}}
 
   /* Premium metric cards */
   [data-testid="stMetric"] {{
@@ -88,7 +88,7 @@ CSS = f"""
 
 def hero_html() -> str:
     return f"""
-    <div class="lumora-hero">
+    <div class="runova-hero">
       <div class="brand">{APP_ICON} {APP_NAME}</div>
       <h1>{APP_TAGLINE}</h1>
       <p>Find, score &amp; win aesthetic clinics — with email and socials — then

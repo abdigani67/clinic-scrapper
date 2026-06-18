@@ -345,7 +345,7 @@ with crm_tab:
             b2.download_button(
                 "⬇️ Export CRM (CSV)",
                 crm_df.drop(columns=["dedup_key"]).to_csv(index=False).encode("utf-8"),
-                file_name="lumora_crm_export.csv",
+                file_name="runova_crm_export.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
