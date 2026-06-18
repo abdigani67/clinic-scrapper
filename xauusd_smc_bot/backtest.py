@@ -343,6 +343,121 @@ def run_backtest(
     return result
 
 
+def run_with_signals(
+    m5: pd.DataFrame,
+    signals: pd.Series,
+    starting_balance: float = 100.0,
+    point: float = 0.01,
+    commission_per_lot: float = 7.0,
+    spread_points: float = 10.0,
+    apply_session: bool = True,
+    apply_news: bool = True,
+    compound: bool = True,
+    warmup: int = 300,
+) -> BacktestResult:
+    """Backtest a precomputed +1/-1/0 signal series through the SAME risk engine.
+
+    Identical trade management, SL/TP, sizing, session and news filters as
+    run_backtest — only the entry direction comes from ``signals`` instead of
+    the SMC strategy. This is how alternative strategies are compared on a level
+    playing field.
+
+    Args:
+        m5: M5 DataFrame indexed by EST timestamp.
+        signals: Series aligned to m5.index with values in {1, -1, 0}.
+        starting_balance: Account balance to start with.
+        point: Instrument point size.
+        commission_per_lot: Round-turn commission per 1.0 lot.
+        spread_points: Spread cost in points applied to entries.
+        apply_session: Enforce the NY session filter.
+        apply_news: Enforce the safe-mode news windows.
+        compound: Size off live balance if True.
+        warmup: Initial bars to skip for indicator history.
+
+    Returns:
+        BacktestResult: Trades, equity curve, balances.
+    """
+    m15 = resample(m5, "15min")
+    m15_ns = _close_time_ns(m15)
+    m15_ohlc = m15[["open", "high", "low", "close", "tick_volume"]]
+
+    balance = starting_balance
+    day_open_balance = balance
+    current_day = None
+    daily_halt = False
+    open_trade: Trade | None = None
+    result = BacktestResult(starting_balance=starting_balance)
+
+    index = m5.index
+    sig_vals = signals.to_numpy()
+    n = len(m5)
+
+    for i in range(warmup, n):
+        bar = m5.iloc[i]
+        ts = index[i]
+        now_ns = ts.value + pd.Timedelta("5min").value
+
+        day = ts.date()
+        if day != current_day:
+            current_day = day
+            day_open_balance = balance
+            daily_halt = False
+
+        if open_trade is not None:
+            hit = _check_exit(open_trade, bar)
+            if hit is not None:
+                exit_price, res = hit
+                pnl = _pnl(open_trade, exit_price, point, commission_per_lot)
+                balance += pnl
+                open_trade.exit_time = ts
+                open_trade.exit = exit_price
+                open_trade.result = res
+                open_trade.pnl = pnl
+                open_trade.balance_after = balance
+                result.trades.append(open_trade)
+                result.equity_curve.append((ts, balance))
+                open_trade = None
+            else:
+                continue
+
+        direction_val = sig_vals[i]
+        if direction_val == 0:
+            continue
+        if apply_session and not _session_open_est(ts):
+            continue
+        if apply_news and _safe_news_block(ts):
+            continue
+        if daily_halt:
+            continue
+        if risk.daily_loss_hit(day_open_balance, balance - day_open_balance, 0.0):
+            daily_halt = True
+            continue
+
+        direction = "BUY" if direction_val > 0 else "SELL"
+        m15_win = _trailing_ns(m15_ohlc, m15_ns, now_ns, config.M15_CANDLES)
+        if len(m15_win) < config.SL_SWING_LOOKBACK:
+            continue
+
+        price = float(bar["close"])
+        entry = price + spread_points * point * (1 if direction == "BUY" else -1)
+        sl = risk.stop_loss(direction, entry, m15_win, point)
+        if sl is None:
+            continue
+        tp, rr = risk.take_profit(direction, entry, sl, m15_win, point)
+        sizing_balance = balance if compound else starting_balance
+        lot = risk.position_size(sizing_balance, entry, sl, point)
+        if lot <= 0:
+            continue
+
+        open_trade = Trade(
+            entry_time=ts, direction=direction, entry=entry, sl=sl, tp=tp,
+            rr=rr, lot=lot, reason=f"signal={direction}",
+        )
+
+    result.ending_balance = balance
+    return result
+
+
 def _check_exit(trade: Trade, bar) -> tuple | None:
     """Determine whether a bar's range hit the trade's SL or TP.
 

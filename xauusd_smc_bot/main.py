@@ -20,6 +20,7 @@ import config
 import mt5_client as mt5c
 import news
 import risk
+import strategies
 import strategy
 from utils import (
     fmt_est,
@@ -146,25 +147,33 @@ def _try_enter_trade(state: BotState) -> None:
         state.cached["signal"] = "NO DATA"
         return
 
-    # Use the bid/ask appropriate to a potential direction; bias decides later,
-    # so probe with the last close and refine once we know direction.
+    # Ask the selected strategy for a direction. The SMC strategy returns a rich
+    # dict (and populates the bias/sweep/OB/FVG status fields); the other
+    # strategies just return a direction.
     last_price = float(m5["close"].iloc[-1])
-    sig = strategy.signal(h1, m15, m5, last_price)
-
-    # Refresh cached components for the status block.
-    state.cached["bias"] = sig["bias"]
-    state.cached["sweep"] = "YES" if sig["sweep"].get("detected") else "NO"
-    if sig["ob"].get("valid"):
-        state.cached["ob"] = f"{sig['ob']['low']:.2f} – {sig['ob']['high']:.2f}"
+    if config.STRATEGY_NAME == "smc":
+        sig = strategy.signal(h1, m15, m5, last_price)
+        state.cached["bias"] = sig["bias"]
+        state.cached["sweep"] = "YES" if sig["sweep"].get("detected") else "NO"
+        if sig["ob"].get("valid"):
+            state.cached["ob"] = f"{sig['ob']['low']:.2f} – {sig['ob']['high']:.2f}"
+        else:
+            state.cached["ob"] = "—"
+        state.cached["fvg"] = "YES" if sig["fvg"].get("active") else "NO"
+        direction = sig["direction"]
+        no_signal_reason = sig["reason"]
     else:
+        direction = strategies.live_direction(config.STRATEGY_NAME, h1, m15, m5)
+        state.cached["bias"] = config.STRATEGY_NAME
+        state.cached["sweep"] = "—"
         state.cached["ob"] = "—"
-    state.cached["fvg"] = "YES" if sig["fvg"].get("active") else "NO"
+        state.cached["fvg"] = "—"
+        no_signal_reason = f"No {config.STRATEGY_NAME} signal"
 
-    if sig["direction"] is None:
-        state.cached["signal"] = sig["reason"]
+    if direction is None:
+        state.cached["signal"] = no_signal_reason
         return
 
-    direction = sig["direction"]
     state.cached["signal"] = f"{'LONG' if direction == 'BUY' else 'SHORT'} PENDING"
 
     # --- Use the live tradeable price for SL/TP/sizing --------------------

@@ -10,6 +10,9 @@ account_state.json
 backtest_trades.csv
 backtest_progress.log
 backtest_report.txt
+compare_report.txt
+compare_realistic.txt
+compare_err.log
 synthetic_xauusd_m5.csv
 *.csv.gz
 

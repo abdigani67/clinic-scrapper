@@ -86,6 +86,21 @@ DEMO_MODE = True         # Switch to False for live trading
 
 
 # ----------------------------------------------------------------------------
+# STRATEGY SELECTION
+# ----------------------------------------------------------------------------
+# Which entry strategy the live bot uses. The risk management (sizing, stops,
+# take-profit, daily loss limit) and the NY session filter are identical for all
+# of them. Run `python compare.py <data.csv>` to rank these on your own history.
+#   "donchian"  — N-bar breakout (Turtle-style trend following)  [default]
+#   "ema_cross" — fast/slow EMA crossover trend following
+#   "pullback"  — EMA200 trend filter + RSI pullback entries
+#   "orb"       — opening-range breakout anchored to the NY open
+#   "bollinger" — mean-reversion control (counter-trend)
+#   "smc"       — the original Smart Money Concepts logic (strategy.py)
+STRATEGY_NAME = "donchian"
+
+
+# ----------------------------------------------------------------------------
 # DERIVED / STRATEGY CONSTANTS (rarely changed)
 # ----------------------------------------------------------------------------
 # How many candles to pull for each timeframe analysis.

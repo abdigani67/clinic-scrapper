@@ -223,6 +223,27 @@ for the record of placed trades.
 
 ---
 
+## Strategy selection
+
+The bot ships with several interchangeable entry strategies (in `strategies.py`).
+They all share the **same** risk management and NY-session filter — only the
+entry trigger differs. Pick one with `STRATEGY_NAME` in `config.py`:
+
+| Name | Type | Idea |
+| --- | --- | --- |
+| `donchian` *(default)* | Trend / breakout | Buy a new N-bar high, sell a new N-bar low (Turtle-style) |
+| `orb` | Trend / breakout | Break of the first hour's range after the NY open |
+| `ema_cross` | Trend | Fast/slow EMA crossover |
+| `pullback` | Trend pullback | EMA200 filter + RSI dip/rally entries |
+| `bollinger` | Counter-trend | Fade the bands (included as a control) |
+| `smc` | Smart Money Concepts | The original bias/sweep/OB/FVG logic (`strategy.py`) |
+
+Run `python compare.py <data.csv>` to rank them on **your own** history and pick
+the best — see below. In a comparison on trending data the **trend-following**
+strategies (donchian, orb, ema_cross) clearly beat the counter-trend control,
+which is why `donchian` is the default. **Always re-rank on real data before
+trusting any of them.**
+
 ## Backtesting (do this BEFORE risking real money)
 
 A month on demo is a tiny, luck-dominated sample. The backtester replays years of
@@ -279,6 +300,35 @@ python backtest.py synthetic_xauusd_m5.csv --balance 100
 
 > ⚠️ Synthetic data has **no real market edge** — it only proves the harness
 > works. Judge profitability **only** on real MT5-exported history.
+
+### Comparing strategies
+
+```bash
+python compare.py synthetic_xauusd_m5.csv --balance 2000 --max-sl 3000
+```
+
+Prints a ranked table (win rate, profit factor, return, max drawdown) for every
+strategy and names the best. Useful flags: `--max-sl` / `--min-sl` (gold swings
+often need a 2000–3000 pt cap), `--risk`, `--balance`.
+
+### ⚠️ Capital vs. gold volatility — important
+
+Backtesting exposed a hard constraint you must understand: **gold's swing-based
+stops are routinely 500–4000 points ($5–$40) wide.** With the default
+`MAX_SL_POINTS = 500`, almost every trade is rejected as "SL too wide", and on a
+**£100** account the minimum 0.01 lot already risks ~10% on a 1000-point stop —
+far above the 2% rule — so sizing returns zero and **nothing trades**.
+
+In other words: **£100 cannot trade gold within a 2% risk rule using realistic
+stops.** To make any strategy tradeable you need one of:
+
+1. **More capital** — roughly £1,500–£2,000+ so a 0.01 lot's risk fits inside 2%.
+2. **A wider stop cap** — raise `MAX_SL_POINTS` to ~3000 to match gold's range.
+3. **Higher per-trade risk** — accept more than 2% (not recommended on a tiny
+   account).
+
+This is why the £100 plan needs rethinking before going live — see the README's
+troubleshooting and risk sections.
 
 ## Logs
 
