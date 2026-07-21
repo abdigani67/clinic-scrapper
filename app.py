@@ -122,10 +122,16 @@ with scrape_tab:
             options=list(NICHE_KEYWORDS.keys()),
         )
         min_score = st.slider("Minimum DM-ready score", 0, 100, 0, step=5)
+        st.caption("Only include leads that have:")
+        cf1, cf2, cf3 = st.columns(3)
+        need_phone = cf1.checkbox("📞 Phone")
+        need_email = cf2.checkbox("✉️ Email")
+        need_ig = cf3.checkbox("📸 Insta")
         enrich = st.toggle(
             "Enrich from website (email + socials)",
             value=True,
-            help="Visits each clinic's site. Slower, but finds emails & Instagram.",
+            help="Visits each clinic's site. Slower, but finds emails & Instagram. "
+            "Turn off for a fast phone-numbers-only run.",
         )
         go = st.button("🔎 Scrape leads", type="primary", use_container_width=True)
         demo = st.button("🧪 Load demo data", use_container_width=True)
@@ -193,6 +199,13 @@ with scrape_tab:
                     lambda n: any(sel in (n or "") for sel in chosen_niches)
                 )
             ]
+        # Contact filters — e.g. tick "Phone" to see only leads with a number.
+        if need_phone:
+            df = df[df["phone"] != ""]
+        if need_email:
+            df = df[df["email"] != ""]
+        if need_ig:
+            df = df[df["instagram"] != ""]
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Showing", f"{len(df)} / {len(full_df)}")
@@ -264,6 +277,16 @@ with scrape_tab:
             st.success(
                 f"Pushed to CRM — {result['inserted']} new, "
                 f"{result['updated']} refreshed."
+            )
+
+        # Quick phone-list export: just name + phone for leads that have a number.
+        phones = df[df["phone"] != ""][["name", "phone"]]
+        if len(phones):
+            st.download_button(
+                f"📞 Phone list ({len(phones)}) — name + number CSV",
+                phones.to_csv(index=False).encode("utf-8"),
+                file_name=f"clinic_phones_{stamp}.csv",
+                mime="text/csv",
             )
 
         render_outreach(df.to_dict("records"), key_prefix="scrape")
