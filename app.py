@@ -79,6 +79,7 @@ st.set_page_config(
     page_title=f"{ui.APP_NAME} — {ui.APP_TAGLINE}",
     page_icon=ui.APP_ICON,
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 st.markdown(ui.CSS, unsafe_allow_html=True)

@@ -29,6 +29,14 @@ CSS = f"""
   [data-testid="stDecoration"] {{display: none;}}
   [data-testid="stStatusWidget"] {{display: none;}}
 
+  /* Always keep the sidebar expand/collapse control visible and reachable */
+  [data-testid="stSidebarCollapsedControl"],
+  [data-testid="stSidebarCollapseButton"],
+  [data-testid="collapsedControl"] {{
+    display: flex !important; visibility: visible !important; opacity: 1 !important;
+    z-index: 999999 !important;
+  }}
+
   .block-container {{padding-top: 1.4rem; max-width: 1280px;}}
 
   h1, h2, h3 {{font-weight: 800; letter-spacing: -0.02em; color: {_INK};}}
