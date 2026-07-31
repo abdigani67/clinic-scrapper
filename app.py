@@ -118,16 +118,28 @@ with scrape_tab:
         max_results = st.slider("Max results per city", 10, 120, 60, step=10)
         st.divider()
         st.subheader("Filters")
-        chosen_niches = st.multiselect(
-            "Niches (empty = all aesthetic targets)",
-            options=list(NICHE_KEYWORDS.keys()),
+        all_types = st.toggle(
+            "🏢 Search all business types (not just clinics)",
+            value=False,
+            help="Off = aesthetic clinics only. On = keep any business "
+            "(barbers, gyms, restaurants...). Great for web-design prospecting.",
         )
+        if not all_types:
+            chosen_niches = st.multiselect(
+                "Niches (empty = all aesthetic targets)",
+                options=list(NICHE_KEYWORDS.keys()),
+            )
+        else:
+            chosen_niches = []
         min_score = st.slider("Minimum DM-ready score", 0, 100, 0, step=5)
-        st.caption("Only include leads that have:")
+        st.caption("Only include leads that:")
         cf1, cf2, cf3 = st.columns(3)
         need_phone = cf1.checkbox("📞 Phone")
         need_email = cf2.checkbox("✉️ Email")
         need_ig = cf3.checkbox("📸 Insta")
+        need_no_web = st.checkbox(
+            "🚫 Have NO website (ideal for offering web design)"
+        )
         enrich = st.toggle(
             "Enrich from website (email + socials)",
             value=True,
@@ -173,6 +185,7 @@ with scrape_tab:
                     queries,
                     max_results_per_query=max_results,
                     enrich=enrich,
+                    filter_niches=not all_types,
                     source=source,
                     progress=lambda msg: status.write(f"`{msg}`"),
                 )
@@ -207,6 +220,8 @@ with scrape_tab:
             df = df[df["email"] != ""]
         if need_ig:
             df = df[df["instagram"] != ""]
+        if need_no_web:
+            df = df[df["website"] == ""]
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Showing", f"{len(df)} / {len(full_df)}")
